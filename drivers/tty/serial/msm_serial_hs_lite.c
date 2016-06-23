@@ -1877,6 +1877,30 @@ static int msm_serial_hsl_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
+
+#ifdef VENDOR_EDIT
+//xuanzhi.qin@Swdp.Android.kernel, 2015/01/14, add for  no console suspend
+static int msm_hsl_prepare(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	struct uart_port *up = get_port_from_line(get_line(pdev));
+	dev_dbg(dev, "msm_hsl_prepare: suspend prepare\n");
+	up->is_suspending = true;
+
+	return 0;
+}
+
+static void msm_hsl_complete(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+
+	struct uart_port *up = get_port_from_line(get_line(pdev));
+	dev_dbg(dev, "msm_hsl_complete: suspend exit\n");
+	up->is_suspending = false;
+}
+#endif /* VENDOR_EDIT */
+
 static int msm_serial_hsl_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1884,6 +1908,15 @@ static int msm_serial_hsl_suspend(struct device *dev)
 	port = get_port_from_line(get_line(pdev));
 
 	if (port) {
+
+		#ifdef VENDOR_EDIT
+		//xuanzhi.qin@Swdp.Android.kernel, 2015/01/14, add for  no console suspend
+		if (port->is_suspending && !console_suspend_enabled
+			&& is_console(port)) {
+			dev_dbg(dev, "disable console suspend and return\n");
+			return -EBUSY;
+		}
+		#endif /*  VENDOR_EDIT */
 
 		if (is_console(port))
 			msm_hsl_deinit_clock(port);
@@ -1946,6 +1979,11 @@ static struct dev_pm_ops msm_hsl_dev_pm_ops = {
 	.resume = msm_serial_hsl_resume,
 	.runtime_suspend = msm_hsl_runtime_suspend,
 	.runtime_resume = msm_hsl_runtime_resume,
+#if defined(CONFIG_PM) && defined(VENDOR_EDIT)
+//xuanzhi.qin@Swdp.Android.kernel, 2015/01/14, add for no console suspend
+	.prepare		 = msm_hsl_prepare,
+	.complete		 = msm_hsl_complete,
+#endif /* CONFIG_PM && VENDOR_EDIT*/
 };
 
 static struct platform_driver msm_hsl_platform_driver = {

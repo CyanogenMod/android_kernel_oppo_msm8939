@@ -94,6 +94,16 @@
 			reg = <0x0 0x83000000 0x0 0x2000000>;
 			label = "cont_splash_mem";
 		};
+
+		/*#ifdef VENDOR_EDIT  //add for enlarge nv backup memory*/
+		nvbackup_regions: nvbackup_regions@0 {
+			linux,reserve-contiguous-region;
+			linux,reserve-region;
+			linux,remove-completely;
+			reg = <0 0x85f00000 0 0x100000>;
+			label = "memory_nvbackup";
+		};
+		/*#endif  VENDOR_EDIT*/
 	};
 
 	soc: soc { };
