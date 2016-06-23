@@ -468,7 +468,9 @@ struct msm_otg {
 	bool err_event_seen;
 	int async_int;
 	unsigned cur_power;
+	#ifdef VENDOR_EDIT /*dengnw@BSP.drv add QCOM patch for OTG 20150115*/
 	struct workqueue_struct *otg_wq;
+	#endif
 	struct delayed_work chg_work;
 	struct delayed_work id_status_work;
 	struct delayed_work suspend_work;
@@ -545,6 +547,8 @@ struct msm_otg {
 	unsigned int voltage_max;
 	unsigned int current_max;
 	unsigned int usbin_health;
+	//lfc add for otg switch
+	bool	otg_switch;
 
 	dev_t ext_chg_dev;
 	struct cdev ext_chg_cdev;
@@ -554,12 +558,20 @@ struct msm_otg {
 	enum usb_ext_chg_status ext_chg_active;
 	struct completion ext_chg_wait;
 	struct pinctrl *phy_pinctrl;
+	struct pinctrl_state *usb_id_pinctrl_default;
+	struct pinctrl_state *usb_id_pinctrl_active;
+	struct pinctrl_state *usb_id_pinctrl_sleep;
 	int ui_enabled;
 	bool pm_done;
 	struct qpnp_vadc_chip	*vadc_dev;
 	int ext_id_irq;
 	bool phy_irq_pending;
-	wait_queue_head_t	host_suspend_wait;
+	#if 0//def VENDOR_EDIT /*dengnw@BSP.drv add QCOM patch for OTG 20150115*/
+	struct mutex *inputbits_mutex; 
+	#endif
+	#ifdef VENDOR_EDIT /*dengnw@BSP.drv add QCOM patch for OTG 20150115*/
+	wait_queue_head_t      host_suspend_wait;
+	#endif
 /* Maximum debug message length */
 #define DEBUG_MSG_LEN   128UL
 /* Maximum number of messages */

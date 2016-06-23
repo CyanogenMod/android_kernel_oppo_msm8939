@@ -80,7 +80,12 @@ obj-$(CONFIG_TOUCHSCREEN_MSTAR21XX)	+= msg21xx_ts.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_RMI4_DEV)	+= synaptics_rmi_dev.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE) 	+= synaptics_fw_update.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)		+= synaptics_i2c_rmi4.o
-obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/
+#ifdef VENDOR_EDIT//huqiao@EXP.BasicDrv.Basic, 2016/01/25, add for tp:gt9xx. 
+obj-$(CONFIG_GT9XX_TOUCHPANEL_DRIVER)		+= gt9xx/
+#endif
 obj-$(CONFIG_TOUCHSCREEN_BU21150)	+= bu21150.o
 obj-$(CONFIG_INPUT_MT_WRAPPER)		+= input_mt_wrapper.o
 obj-$(CONFIG_TOUCHSCREEN_IT7260_I2C)    += it7258_ts_i2c.o
+#ifdef VENDOR_EDIT//Added by Tong.han@Bsp.group.Tp for synaptics_ic driver,2015-01-21 
+obj-$(CONFIG_SYNAPTICS_OPPO) += synaptics_oppo/
+#endif
