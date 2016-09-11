@@ -75,6 +75,7 @@ obj-$(CONFIG_SENSORS_AKM09911)		+= akm09911.o
 obj-$(CONFIG_SENSORS_LIS3DH)		+= lis3dh_acc.o
 obj-$(CONFIG_SENSORS_AP3426)		+= ap3426.o
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bstclass.o
+obj-$(CONFIG_SENSORS_APDS9921)	+= apds9921.o
 
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bma2x2.o
 obj-$(CONFIG_SENSORS_LTR553)	+= ltr553.o
@@ -86,3 +87,5 @@ endif
 ifeq ($(CONFIG_BOSCH_BMA2X2_ENABLE_INT2),y)
 	EXTRA_CFLAGS += -DBMA2X2_ENABLE_INT2
 endif
+
+obj-$(CONFIG_BTP_FPC1140)  += fpc1020_tee_qsee4.o

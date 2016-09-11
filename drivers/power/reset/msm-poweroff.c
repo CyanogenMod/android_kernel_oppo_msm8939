@@ -32,6 +32,10 @@
 #include <soc/qcom/restart.h>
 #include <soc/qcom/watchdog.h>
 
+#ifdef VENDOR_EDIT
+#include <soc/oppo/oppo_project.h>
+#endif
+
 #define EMERGENCY_DLOAD_MAGIC1    0x322A4F99
 #define EMERGENCY_DLOAD_MAGIC2    0xC67E4350
 #define EMERGENCY_DLOAD_MAGIC3    0x77777777
@@ -43,6 +47,11 @@
 #define SCM_EDLOAD_MODE			0X01
 #define SCM_DLOAD_CMD			0x10
 
+#ifdef VENDOR_EDIT
+#define RTC_BOOT_MODE		0x88F
+#define RTC_FASTBOOT_MODE	0x01
+#define RTC_RECOVERY_MODE	0x02
+#endif
 
 static int restart_mode;
 void *restart_reason;
@@ -255,13 +264,29 @@ static void msm_restart_prepare(const char *cmd)
 
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
-			qpnp_pon_set_restart_reason(
-				PON_RESTART_REASON_BOOTLOADER);
-			__raw_writel(0x77665500, restart_reason);
+#ifdef VENDOR_EDIT
+			if (is_project(OPPO_15011)) {
+				qpnp_silence_write(RTC_BOOT_MODE,
+						   RTC_FASTBOOT_MODE);
+			} else
+#endif
+			{
+				qpnp_pon_set_restart_reason(
+					PON_RESTART_REASON_BOOTLOADER);
+				__raw_writel(0x77665500, restart_reason);
+			}
 		} else if (!strncmp(cmd, "recovery", 8)) {
-			qpnp_pon_set_restart_reason(
-				PON_RESTART_REASON_RECOVERY);
-			__raw_writel(0x77665502, restart_reason);
+#ifdef VENDOR_EDIT
+			if (is_project(OPPO_15011)) {
+				qpnp_silence_write(RTC_BOOT_MODE,
+						   RTC_RECOVERY_MODE);
+			} else
+#endif
+			{
+				qpnp_pon_set_restart_reason(
+					PON_RESTART_REASON_RECOVERY);
+				__raw_writel(0x77665502, restart_reason);
+			}
 		} else if (!strcmp(cmd, "rtc")) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
@@ -432,6 +457,10 @@ static int msm_restart_probe(struct platform_device *pdev)
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(msm_ps_hold))
 		return PTR_ERR(msm_ps_hold);
+
+#ifdef VENDOR_EDIT
+	__raw_writel(0x7766550a, restart_reason);
+#endif
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (mem)
