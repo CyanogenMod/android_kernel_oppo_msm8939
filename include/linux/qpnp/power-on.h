@@ -52,6 +52,10 @@ enum pon_restart_reason {
 	PON_RESTART_REASON_RECOVERY	= 0x01,
 	PON_RESTART_REASON_BOOTLOADER	= 0x02,
 	PON_RESTART_REASON_RTC		= 0x03,
+#ifdef CONFIG_MACH_OPPO
+/* Added by tong.han@Bsp.group.Tp add for silence mode(using hard-reset reg check),2016-06-02*/
+	PON_RESTART_REASON_SILENCE  = 0x04,
+#endif /*CONFIG_MACH_OPPO*/
 };
 
 #ifdef CONFIG_QPNP_POWER_ON
@@ -85,6 +89,10 @@ static inline bool qpnp_pon_check_hard_reset_stored(void)
 {
 	return false;
 }
+#endif
+
+#ifdef CONFIG_MACH_OPPO
+int qpnp_silence_write(u16 addr, u8 val);
 #endif
 
 #endif

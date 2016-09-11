@@ -30,6 +30,10 @@
 #include <sound/asound.h>
 #include "msm-dts-eagle.h"
 
+#ifdef CONFIG_MACH_OPPO //Jianfeng.Qiu@PhoneSw.AudioDriver, 2015/04/22, Add for LVVE
+#include <soc/oppo/oppo_project.h>
+#endif /* CONFIG_MACH_OPPO */
+
 #define TIMEOUT_MS 1000
 
 #define RESET_COPP_ID 99
@@ -1972,10 +1976,26 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 			flags = ADM_LEGACY_DEVICE_SESSION;
 	}
 
+#ifdef CONFIG_MACH_OPPO //Jianfeng.Qiu@PhoneSw.AudioDriver, 2015/04/22, Modify for LVVE
+    if (is_project(OPPO_15018)) {
+        if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
+            (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
+            (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY) ||
+            (topology == VOICE_TOPOLOGY_LVVEFQ_TX_SM) ||
+            (topology == VOICE_TOPOLOGY_LVVEFQ_TX_DM))
+            rate = 16000;
+    } else {
+        if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
+            (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
+            (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY))
+            rate = 16000;
+    }
+#else /* CONFIG_MACH_OPPO */
 	if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY))
 		rate = 16000;
+#endif /* CONFIG_MACH_OPPO */
 
 	copp_idx = adm_get_idx_if_copp_exists(port_idx, topology, perf_mode,
 						rate, bit_width, app_type);

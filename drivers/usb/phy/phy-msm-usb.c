@@ -52,6 +52,9 @@
 
 #include <linux/msm-bus.h>
 
+#ifdef CONFIG_MACH_OPPO	//Fuchun.Liao 2014-09-19 add
+#include <soc/oppo/oppo_project.h>
+#endif
 #define MSM_USB_BASE	(motg->regs)
 #define MSM_USB_PHY_CSR_BASE (motg->phy_csr_regs)
 
@@ -95,7 +98,11 @@ module_param(lpm_disconnect_thresh , uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(lpm_disconnect_thresh,
 	"Delay before entering LPM on USB disconnect");
 
+#ifndef CONFIG_MACH_OPPO
 static bool floated_charger_enable;
+#else
+static bool floated_charger_enable = 1;
+#endif
 module_param(floated_charger_enable , bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(floated_charger_enable,
 	"Whether to enable floated charger");
@@ -1899,7 +1906,12 @@ static int msm_otg_notify_power_supply(struct msm_otg *motg, unsigned mA)
 			goto psy_error;
 		if (power_supply_set_current_limit(psy, 1000*mA))
 			goto psy_error;
+#ifndef CONFIG_MACH_OPPO
+//Modified by Tong.han@Bsp.group.Tp for fixing the disconnect issue swtich the charger and the mtp,2015-2-28
 	} else if (motg->cur_power >= 0 && (mA == 0 || mA == 2)) {
+#else
+	} else if (motg->cur_power >= 0 && (mA == 0 || mA == 2) && (motg->chg_type == USB_INVALID_CHARGER)){
+#endif /*CONFIG_MACH_OPPO*/
 		/* Disable charging */
 		if (power_supply_set_online(psy, false))
 			goto psy_error;
@@ -2139,6 +2151,11 @@ static void msm_hsusb_vbus_power(struct msm_otg *motg, bool on)
 	if (on) {
 		msm_otg_notify_host_mode(motg, on);
 		ret = regulator_enable(vbus_otg);
+		#ifdef CONFIG_MACH_OPPO/*dengnw@bsp.drv  for OTG delay  20141226*/
+		pr_err("oppo_otg able to enable vbus_otg\n");
+		/*chaoying.chen@EXP.BaseDrv.otg,2015/06/18  modify OTG delay for 15069/15062/15089*/
+		msleep(500);
+		#endif
 		if (ret) {
 			pr_err("unable to enable vbus_otg\n");
 			return;
@@ -2146,10 +2163,18 @@ static void msm_hsusb_vbus_power(struct msm_otg *motg, bool on)
 		vbus_is_on = true;
 	} else {
 		ret = regulator_disable(vbus_otg);
+		#ifdef CONFIG_MACH_OPPO/*dengnw@bsp.drv  for OTG delay  20141226*/
+		if (ret) {
+			msleep(10);
+			ret = regulator_disable(vbus_otg);
+			msleep(5);
+		}
+		#endif
 		if (ret) {
 			pr_err("unable to disable vbus_otg\n");
 			return;
 		}
+		pr_err("oppo_otg able to disable vbus_otg\n");
 		msm_otg_notify_host_mode(motg, on);
 		vbus_is_on = false;
 	}
@@ -3280,6 +3305,12 @@ static void msm_otg_sm_work(struct work_struct *w)
 				case USB_DCP_CHARGER:
 					/* fall through */
 				case USB_PROPRIETARY_CHARGER:
+#ifdef CONFIG_MACH_OPPO
+/* OPPO 2015-05-07 sjc Add for 2A charging */
+					if (is_project(OPPO_15018)|| is_project(OPPO_15011))
+						msm_otg_notify_charger(motg, 2000);
+					else
+#endif
 					msm_otg_notify_charger(motg,
 							IDEV_CHG_MAX);
 					otg->phy->state =
@@ -3292,6 +3323,12 @@ static void msm_otg_sm_work(struct work_struct *w)
 					pm_runtime_put_sync(otg->phy->dev);
 					break;
 				case USB_FLOATED_CHARGER:
+#ifdef CONFIG_MACH_OPPO
+/* OPPO 2015-05-07 sjc Add for 2A charging */
+					if (is_project(OPPO_15018)|| is_project(OPPO_15011))
+						msm_otg_notify_charger(motg, 2000);
+					else
+#endif
 					msm_otg_notify_charger(motg,
 							IDEV_CHG_MAX);
 					otg->phy->state =
@@ -4231,6 +4268,10 @@ static void msm_id_status_w(struct work_struct *w)
 	else if (motg->phy_irq)
 		id_state = msm_otg_read_phy_id_state(motg);
 
+	#ifdef CONFIG_MACH_OPPO/*dengnw@bsp.drv  for OTG delay  20141226*/
+	pr_err("oppo_otg start---step1--chech id int-motg->ext_id_irq--- id_state=%d\n", id_state);
+	#endif
+
 	if (id_state) {
 		if (gpio_is_valid(motg->pdata->switch_sel_gpio))
 			gpio_direction_input(motg->pdata->switch_sel_gpio);
@@ -4638,6 +4679,8 @@ static int otg_power_set_property_usb(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_TYPE:
 		psy->type = val->intval;
+#ifndef CONFIG_MACH_OPPO
+/* OPPO 2015-03-20 sjc Delete begin for chg type detection */
 
 		/*
 		 * If charger detection is done by the USB driver,
@@ -4678,6 +4721,7 @@ static int otg_power_set_property_usb(struct power_supply *psy,
 			chg_to_string(motg->chg_type));
 		msm_otg_dbg_log_event(&motg->phy, "SET CHARGER TYPE ",
 				motg->chg_type, psy->type);
+#endif //CONFIG_MACH_OPPO
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		motg->usbin_health = val->intval;
