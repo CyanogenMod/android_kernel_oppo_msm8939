@@ -259,7 +259,7 @@ int qpnp_pon_set_restart_reason(enum pon_restart_reason reason)
 		return 0;
 
 	rc = qpnp_pon_masked_write(pon, QPNP_PON_SOFT_RB_SPARE(pon->base),
-					PON_MASK(7, 2), (reason << 2));
+					PON_MASK(7, 5), (reason << 5));
 	if (rc)
 		dev_err(&pon->spmi->dev,
 				"Unable to write to addr=%x, rc(%d)\n",
@@ -434,6 +434,37 @@ int qpnp_pon_is_warm_reset(void)
 }
 EXPORT_SYMBOL(qpnp_pon_is_warm_reset);
 
+#ifdef CONFIG_MACH_OPPO //yixue.ge@bsp.drv add a function to get poweron reason for debug
+int qpnp_pon_print_power_reason(void)
+{
+	struct qpnp_pon *pon = sys_reset_dev;
+
+	if(!pon)
+		return -1;
+
+	if (pon->pon_trigger_reason >= ARRAY_SIZE(qpnp_pon_reason) || pon->pon_trigger_reason < 0) {
+		pr_err("PMIC@SID%d Power-on reason: Unknown and '%s' boot\n",
+			pon->spmi->sid, cold_boot ? "cold" : "warm");
+	} else {
+		pr_err("PMIC@SID%d Power-on reason: %s and '%s' boot\n",
+			pon->spmi->sid, qpnp_pon_reason[pon->pon_trigger_reason],
+			cold_boot ? "cold" : "warm");
+	}
+
+	if (pon->pon_power_off_reason >= ARRAY_SIZE(qpnp_poff_reason) || pon->pon_power_off_reason < 0) {
+		pr_err("PMIC@SID%d: Unknown power-off reason\n",
+				pon->spmi->sid);
+	} else {
+		pr_err("PMIC@SID%d: Power-off reason: %s\n",
+				pon->spmi->sid,
+				qpnp_poff_reason[pon->pon_power_off_reason]);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(qpnp_pon_print_power_reason);
+#endif
+
 /**
  * qpnp_pon_wd_config - Disable the wd in a warm reset.
  * @enable: to enable or disable the PON watch dog
@@ -492,6 +523,25 @@ int qpnp_pon_trigger_config(enum pon_trigger_source pon_src, bool enable)
 	return rc;
 }
 EXPORT_SYMBOL(qpnp_pon_trigger_config);
+
+#ifdef CONFIG_MACH_OPPO
+int qpnp_silence_write(u16 addr, u8 val)
+{
+	int rc;
+	u8 reg;
+	struct qpnp_pon *pon = sys_reset_dev;
+
+	reg = val;
+
+	rc = spmi_ext_register_writel(pon->spmi->ctrl, pon->spmi->sid,
+				      addr, &reg, 1);
+	if (rc)
+		dev_err(&pon->spmi->dev,
+			"Unable to write to addr=%x, rc(%d)\n", addr, rc);
+	return rc;
+}
+EXPORT_SYMBOL(qpnp_silence_write);
+#endif
 
 /*
  * This function stores the PMIC warm reset reason register values. It also
@@ -592,6 +642,18 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 
 	pr_debug("PMIC input: code=%d, sts=0x%hhx\n",
 					cfg->key_code, pon_rt_sts);
+
+	#ifdef CONFIG_MACH_OPPO
+	/*rongchun.zhang@EXP.BaseDrv 2015-12-18 add for print powerkey log*/
+	if( (cfg->pon_type ==PON_KPDPWR) && pon_rt_sts){
+		pr_err("PMIC input,PowerKey is pressed!! code=%d, sts=0x%hhx\n",
+					cfg->key_code, pon_rt_sts);
+	}else if((cfg->pon_type ==PON_KPDPWR) && (!pon_rt_sts)){
+		pr_err("PMIC input,PowerKey is released!! code=%d, sts=0x%hhx\n",
+					cfg->key_code, pon_rt_sts);
+	}
+	#endif
+
 	key_status = pon_rt_sts & pon_rt_bit;
 
 	/* simulate press event in case release event occured
@@ -643,6 +705,7 @@ static irqreturn_t qpnp_kpdpwr_resin_bark_irq(int irq, void *_pon)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_MACH_OPPO
 static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
 {
 	int rc;
@@ -654,6 +717,52 @@ static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
 
 	return IRQ_HANDLED;
 }
+#else
+#define CBL_POWER_ON_VALID_REG			0x810
+#define CBL_POWER_ON_VALID_MASK			BIT(2)
+#define CBL_POWER_ON_VALID				BIT(2)
+extern void opchg_usbin_valid_irq_handler(bool usb_present);
+
+static bool qpnp_cblpwr_is_usb_plugged_in(struct qpnp_pon *pon)
+{
+	int rc;
+	u8 valid_sta;
+
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+				CBL_POWER_ON_VALID_REG, &valid_sta, 1);
+	if (rc) {
+		dev_err(&pon->spmi->dev, "Unable to read PON RT status\n");
+		return rc;
+	}
+	return (valid_sta & CBL_POWER_ON_VALID_MASK) ? 1 : 0;
+}
+
+static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
+{
+	struct qpnp_pon *pon = _pon;
+	bool usb_present = 0;
+
+#if 0
+	rc = qpnp_pon_input_dispatch(pon, PON_CBLPWR);
+	if (rc)
+		dev_err(&pon->spmi->dev, "Unable to send input event\n");
+#endif
+
+	usb_present = qpnp_cblpwr_is_usb_plugged_in(pon);
+	pr_err("%s usbin-valid triggered:%d\n",__func__,usb_present);
+	opchg_usbin_valid_irq_handler(usb_present);
+	return IRQ_HANDLED;
+}
+
+int opchg_get_charger_inout_cblpwr(void)
+{
+	int charger_in=0;
+
+	charger_in= qpnp_cblpwr_is_usb_plugged_in(sys_reset_dev);
+	return charger_in;
+}
+
+#endif //CONFIG_MACH_OPPO
 
 static void print_pon_reg(struct qpnp_pon *pon, u16 offset)
 {
@@ -957,6 +1066,11 @@ qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 							cfg->state_irq);
 			return rc;
 		}
+		pr_err("%s qpnp_cblpwr_status is triggered probe\n",__func__);
+#ifdef CONFIG_MACH_OPPO
+//Fuchun.Liao@Mobile.BSP.CHG 2015-05-15 add to use cbl_pwr to detect charger
+		enable_irq_wake(cfg->state_irq);
+#endif
 		break;
 	case PON_KPDPWR_RESIN:
 		if (cfg->use_bark) {
