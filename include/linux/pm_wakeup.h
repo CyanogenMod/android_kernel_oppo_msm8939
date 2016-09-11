@@ -59,6 +59,10 @@ struct wakeup_source {
 	unsigned long		relax_count;
 	unsigned long		expire_count;
 	unsigned long		wakeup_count;
+#ifdef VENDOR_EDIT
+//Modify by Tong.han@Bsp.Group.Tp for checklist ,2015-4-18
+	int			inserted;
+#endif/*VENDOR_EDIT*/
 	bool			active:1;
 	bool			autosleep_enabled:1;
 };
