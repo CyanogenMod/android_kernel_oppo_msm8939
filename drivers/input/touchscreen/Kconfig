@@ -1027,8 +1027,8 @@ config SECURE_TOUCH
 	  Say Y here to enable Secure Touch in supported drivers.
 
 	  If unsure, say N.
-
-config TOUCHSCREEN_GT9XX
+#ifdef VENDOR_EDIT /* huqiao@EXP.BasicDrv.Basic, 2016/01/25, add for tp:gt9xx. */
+config GT9XX_TOUCHPANEL_DRIVER
 	bool "Goodix touchpanel GT9xx series"
 	depends on I2C
 	help
@@ -1039,7 +1039,7 @@ config TOUCHSCREEN_GT9XX
           If unsure, say N.
 
 source "drivers/input/touchscreen/gt9xx/Kconfig"
-
+#endif /*VENDOR_EDIT*/
 config TOUCHSCREEN_BU21150
 	tristate "JDI AFE BU21150"
 	depends on SPI_MASTER
@@ -1073,5 +1073,6 @@ config TOUCHSCREEN_IT7260_I2C
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called it7258_ts_i2c.
+source "drivers/input/touchscreen/synaptics_oppo/Kconfig"
 
 endif
